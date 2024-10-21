@@ -1,73 +1,43 @@
-#!/usr/bin/env python
-# coding: utf-8
-
-# In[4]:
-
-
 import csv
-import os
+from collections import defaultdict
 
-
-####################DEFINITIONS########################
-# Filters the CSV to make it so that only the books that are in a unique bookshelf will be in the new file 
-def filter_csv(file_path):
-    # Read the CSV file
-    with open(file_path, 'r', newline='', encoding='utf-8') as csvfile:
-        csv_reader = csv.reader(csvfile)
-        
-        # Remove the first row (header)
-        header = next(csv_reader)
-        
-        # Find the index of the 17th column (assuming 0-based index)
-        column_17_index = 16
-        
-        # Filter rows with string value in the 17th column and not in the exclusion list
-        filtered_rows = [row for row in csv_reader if len(row) > column_17_index 
-                                                    and isinstance(row[column_17_index], str)
-                                                    and row[column_17_index].lower() not in ["read", "to-read", "currently-reading"]
-                                                    and row[column_17_index] != ""]  # Exclude empty string
+def rank_authors_by_pages(csv_file):
+    author_pages = defaultdict(int)
     
-    # Create the path for the filtered file using os.path
-    filtered_file_path = os.path.join(os.path.dirname(file_path), 'filtered_' + os.path.basename(file_path))
+    with open(csv_file, 'r', encoding='utf-8') as file:
+        reader = csv.DictReader(file)
+        
+        for row in reader:
+            exclusive_shelf = row['Exclusive Shelf']
+            
+            # Only process books on the "read" shelf
+            if exclusive_shelf.lower() == 'read':
+                author = row['Author']
+                pages = row['Number of Pages']
+                read_count = row['Read Count']
+                
+                if pages and read_count:
+                    try:
+                        total_pages = int(pages) * int(read_count)
+                        author_pages[author] += total_pages
+                    except ValueError:
+                        pass  # Skip rows with non-numeric values
     
-    # Write the filtered data back to the CSV file
-    with open(filtered_file_path, 'w', newline='', encoding='utf-8') as csvfile:
-        csv_writer = csv.writer(csvfile)
-        
-        # Write the filtered rows
-        csv_writer.writerows(filtered_rows)
+    # Sort authors by page count in descending order
+    ranked_authors = sorted(author_pages.items(), key=lambda x: x[1], reverse=True)
+    return ranked_authors
 
-        
-def create_dictionary_from_csv(csv_file_path):
-    data_dict = {}
+# Usage
+csv_file = ''  # Your file path
+result = rank_authors_by_pages(csv_file)
 
-    with open(csv_file_path, 'r') as file:
-        csv_reader = csv.reader(file)
-        for row in csv_reader:
-            if len(row) >= 17 and len(row) >= 12:  # Ensure columns exist
-                key = row[16]  # 17th column
-                value = int(row[11])  # 12th column
+# Print the ranked results
+print("Authors ranked by total pages read:") #multiplies the number of times read by the page count
+for rank, (author, pages) in enumerate(result, 1):
+    print(f"{rank}. {author}: {pages} pages")
 
-                if key in data_dict:
-                    data_dict[key] += value
-                else:
-                    data_dict[key] = value
-
-    return data_dict
-
-######################FILL IN#############################
-# Read the CSV again and make a dictionary
-csv_file_path = 'fill in the filepath here'
-filter_csv(csv_file_path)
-
-result_dict = create_dictionary_from_csv(csv_file_path)
-
-print(result_dict)
-
-
-
-# In[ ]:
-
-
-
-
+# Print the total number of authors and pages
+total_authors = len(result)
+total_pages = sum(pages for _, pages in result)
+print(f"\nTotal authors: {total_authors}")
+print(f"Total pages read: {total_pages}")
